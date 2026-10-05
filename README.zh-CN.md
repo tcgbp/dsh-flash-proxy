@@ -36,6 +36,17 @@ dsh plugin --profile <name> add dsh-flash-proxy
 
 QuickControl 面板 UI 依赖 [dock-flash](https://github.com/tcgbp/dock-flash)，请确保其已安装启用。
 
+## 仓库镜像
+
+开发在 Gitee 上进行；GitHub 是只读镜像，由 [`.github/workflows/sync-from-gitee.yml`](.github/workflows/sync-from-gitee.yml)（每 6 小时，或从 Actions 选项卡手动触发）保持同步。
+
+| 平台 | 角色 | 地址 |
+|---|---|---|
+| Gitee | 源仓库（source of truth） | https://gitee.com/lenin.guo/dsh-flash-proxy |
+| GitHub | 镜像 | https://github.com/tcgbp/dsh-flash-proxy |
+
+请在 Gitee 上提交 Issue 与 Pull Request——在 GitHub 上的合并会被下一次同步覆盖。
+
 ## 设置项
 
 | 字段 | 默认值 | 说明 |
