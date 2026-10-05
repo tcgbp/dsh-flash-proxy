@@ -3,7 +3,7 @@
 # The source of truth for this repository is Gitee:
 #   https://gitee.com/lenin.guo/dsh-flash-proxy
 # This workflow mirrors every branch and tag from there onto GitHub:
-#   https://github.com/lenin-guo/dsh-flash-proxy
+#   https://github.com/tcgbp/dsh-flash-proxy
 #
 # Notes:
 # - `schedule` triggers only run from the repository's DEFAULT branch, so this
