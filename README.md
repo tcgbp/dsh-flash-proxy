@@ -18,6 +18,20 @@ dsh plugin --profile <name> add dsh-flash-proxy
 
 Requires [dock-flash](https://github.com/tcgbp/dock-flash) for the QuickControl panel UI.
 
+## Repository Mirrors
+
+Development happens on Gitee; GitHub is a read-only mirror kept in sync by
+[`.github/workflows/sync-from-gitee.yml`](.github/workflows/sync-from-gitee.yml)
+(every 6 hours, or on demand from the Actions tab).
+
+| Host | Role | URL |
+|---|---|---|
+| Gitee | source of truth | https://gitee.com/lenin.guo/dsh-flash-proxy |
+| GitHub | mirror | https://github.com/lenin-guo/dsh-flash-proxy |
+
+Open issues and pull requests on Gitee — a merge made on GitHub is overwritten by
+the next sync.
+
 ## Settings
 
 | Field | Default | Description |
