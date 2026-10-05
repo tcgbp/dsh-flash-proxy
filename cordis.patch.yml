@@ -1,0 +1,4 @@
+# dsh-flash-proxy bundle layer — registers the HOST half into a profile.
+- insert:
+    - id: dsh-flash-proxy
+      name: dsh-flash-proxy
