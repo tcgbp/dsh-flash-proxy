@@ -1,6 +1,6 @@
 {
   "name": "dsh-flash-proxy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "System proxy control for DSH — NO_PROXY policy, connection diagnostics, and proxy environment inventory via dock-flash QuickControl.",
   "license": "Apache-2.0",
   "type": "module",
