@@ -1,5 +1,7 @@
 # dsh-flash-proxy
 
+> **[简体中文说明文档](README.zh-CN.md)**
+
 System proxy control for DeepSeek Harness — NO_PROXY policy management,
 connection diagnostics, and proxy environment inventory.
 
