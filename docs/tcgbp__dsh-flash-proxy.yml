@@ -1,0 +1,59 @@
+# dsh-market submission entry for dsh-flash-proxy.
+#
+# To submit: copy this file to
+#   <your-fork-of-awesome-dsh-plugin>/data/plugins/tcgbp__dsh-flash-proxy.yml
+# and open a PR against https://github.com/awesome-dsh-plugin/awesome-dsh-plugin.
+# After it is merged, update it here rather than in a second place.
+#
+# Rules enforced by the registry's own scripts/lib/entries.mjs::validateEntries
+# (read from the registry on 2026-10-06) and by contributing.md:
+#   - only these keys: url, name, category, description, tarball
+#     (no `npm:` key — the npm mapping is resolved from the repository)
+#   - filename must equal slugFor(url): <owner>__<repo>.yml
+#   - `name` is the link text, so an owner/repo name must match `url`
+#   - category must be one of the registry's CAT_IDS
+#   - description.en is required and single-line; description.zh is optional
+#   - a description containing ": " must be quoted, or YAML parses it as a
+#     nested mapping key
+#   - tarball must be https on GitHub release hosting and end in .tgz/.tar.gz
+#
+# Category: `tools`. There is no networking or proxy category, so this is a near miss
+# by construction: the plugin configures the host's proxy environment and diagnoses
+# connections, which is infrastructure tooling rather than any of the closer-sounding
+# ones (`remote` is remote access, `dev` is a development aid). The registry treats a
+# near-miss category as maintenance rather than a rejection.
+# CAT_IDS seen 2026-10-06: agi, ui, usage, theme, model, identity, session, memory,
+# tools, wsl, browser, vision, voice, docs, skill, workflow, git, notify, dev,
+# security, remote, market, fun.
+#
+# The tarball is deliberately the version-free releases/latest/download/ URL with a
+# version-free asset name. `latest` is resolved per request but the filename is taken
+# literally, so an asset named dsh-flash-proxy-<version>.tgz would 404 on the next
+# release: keep the asset named dsh-flash-proxy.tgz and publishing a new Release moves
+# this URL by itself, with no entry edit and no pull request per release.
+#
+# It is also the FALLBACK. Measured 2026-10: dsh-market's installTargetFor() resolves
+# the catalog's npm name FIRST (entry.npm), then this Release tarball, then
+# `github:<owner>/<repo>`. The registry resolves that npm mapping from the PUBLISHED
+# package's own `repository` field — worth noting here because this package shipped the
+# WRONG one (`git+https://github.com/tcgbp/dock-flash.git`, a copy/paste from the
+# extraction) until 0.1.4, which is exactly the state that would have mapped it to
+# dock-flash's entry.
+#
+# Submission state, checked 2026-10-06:
+#   * The GitHub mirror exists (tcgbp/dsh-flash-proxy), public, default branch master,
+#     and carries the required `dsh-plugin` topic.
+#   * A Release exists whose asset name matches the URL below, so the entry's own link
+#     resolves; the URL is version-free, so later Releases keep it correct.
+#   * The registry's repo-age gate wants a repository at least 1 day old. This mirror was
+#     created 2026-10-05, so a PR opened immediately may be rejected on age — the gate
+#     re-runs itself every 6 hours, and such a PR turns green on its own.
+#   * The npm package `dsh-flash-proxy` is published, so the catalog's npm mapping can
+#     resolve and users get the registry spec rather than this tarball.
+url: https://github.com/tcgbp/dsh-flash-proxy
+name: tcgbp/dsh-flash-proxy
+category: tools
+description:
+  en: 'System proxy control for DSH, surfaced through dock-flash: proxy mode, a validated NO_PROXY policy grammar, a configurable test URL, connection diagnostics and proxy environment inventory, registering five switches through the quickControl service.'
+  zh: 'DSH 的系统代理控制，经 dock-flash 面板呈现：代理模式、带校验的 NO_PROXY 语法、可配置的测试地址、连接诊断与代理环境清单，通过 quickControl 服务注册五个开关。'
+tarball: https://github.com/tcgbp/dsh-flash-proxy/releases/latest/download/dsh-flash-proxy.tgz

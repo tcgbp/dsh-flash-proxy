@@ -18,8 +18,9 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tcgbp/dock-flash.git"
+    "url": "git+https://github.com/tcgbp/dsh-flash-proxy.git"
   },
+  "homepage": "https://github.com/tcgbp/dsh-flash-proxy#readme",
   "keywords": [
     "dsh",
     "dsh-plugin",
