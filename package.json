@@ -1,6 +1,6 @@
 {
   "name": "dsh-flash-proxy",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "System proxy control for DSH — NO_PROXY policy, connection diagnostics, and proxy environment inventory via dock-flash QuickControl.",
   "license": "Apache-2.0",
   "type": "module",
@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
-    "@deepseek-ai/dsh-settings": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-settings": "0.2.0-rc.2",
     "@types/node": "^22.10.0",
     "typescript": "^5.6.0"
   }
