@@ -1,7 +1,7 @@
 // dsh-flash-proxy — HOST half of the system proxy control plugin.
 //
-// Registers the 'dsh-flash-proxy' settings namespace (proxyMode, customNoProxy,
-// testUrl) and re-installs the undici global dispatcher via
+// Registers the 'dsh-flash-proxy' settings namespace (proxyEnabled, proxyMode,
+// customNoProxy, testUrl) and re-installs the undici global dispatcher via
 // @deepseek-ai/dsh-http-proxy so outbound requests respect the user's NO_PROXY
 // choice. Exposes HTTP routes for the client to query proxy status and test
 // the connection.
@@ -75,6 +75,13 @@ const LAUNCH_ENVIRONMENT_SERVICE = 'launchEnvironment'
 /** Resolved volatile config — each field is a live reference read with .get(). */
 export interface ProxyConfig {
   /**
+   * Global master switch for the whole system-proxy feature (modelled on
+   * dock-flash's System Alerts toggle). When false the proxy is disabled
+   * entirely — every outbound request goes direct, overriding proxyMode. When
+   * true the configured proxyMode takes effect.
+   */
+  proxyEnabled: Volatile<boolean>
+  /**
    * Proxy mode — determines how NO_PROXY is set:
    * - 'all-proxy':  NO_PROXY cleared → all traffic uses proxy
    * - 'api-bypass': NO_PROXY = API_BYPASS_DOMAINS → API calls bypass proxy
@@ -115,6 +122,7 @@ export interface ProxyConfig {
  * writes through ctx.remote.settings, they must all be volatile.
  */
 export const Config = Schema.object({
+  proxyEnabled: Schema.boolean().default(true).volatile(),
   proxyMode: Schema.string().default(DEFAULT_MODE).volatile(),
   customNoProxy: Schema.string().default(DEFAULT_CUSTOM).volatile(),
   testUrl: Schema.string().default(DEFAULT_TEST_URL).volatile(),
@@ -331,11 +339,17 @@ export function apply(ctx: Context, config: ProxyConfig) {
   }
 
   /**
-   * Resolve the effective proxy mode, accounting for the legacy useProxy
-   * migration: if proxyMode sits at its default but useProxy was explicitly
-   * set, the old boolean takes over.
+   * Resolve the effective proxy mode.
+   *
+   * The global master switch (proxyEnabled) takes precedence: when it is off,
+   * the proxy is disabled entirely and every request goes direct (all-bypass).
+   * Otherwise the legacy useProxy migration applies — if proxyMode sits at its
+   * default but useProxy was explicitly set, the old boolean takes over.
    */
   function resolveMode(): string {
+    // Global master off → proxy disabled entirely (all direct).
+    const enabled = config.proxyEnabled?.get() !== false
+    if (!enabled) return 'all-bypass'
     let mode = config.proxyMode.get() || DEFAULT_MODE
     if (!config.proxyMode.get() && typeof config.useProxy?.get() === 'boolean') {
       mode = config.useProxy!.get() ? 'all-proxy' : 'all-bypass'
@@ -355,7 +369,7 @@ export function apply(ctx: Context, config: ProxyConfig) {
   async function applyProxyEnv(mode: string, custom: string) {
     // Idempotence guard — see _appliedProxyKey. Set before any await so the
     // duplicate startup caller is a no-op rather than a racing second install.
-    const key = mode + ' ' + custom
+    const key = mode + '\u0000' + custom
     if (key === _appliedProxyKey) return
     _appliedProxyKey = key
 
@@ -597,7 +611,7 @@ export function apply(ctx: Context, config: ProxyConfig) {
   // subscribes to proxy paths only.
   const relevant = (p: string[]) => p.length === 1
   ctx.on('loader/volatile-update' as any, (paths: string[][]) => {
-    const proxyPaths = ['proxyMode', 'customNoProxy', 'useProxy']
+    const proxyPaths = ['proxyEnabled', 'proxyMode', 'customNoProxy', 'useProxy']
     if (!paths.some((p) => relevant(p) && proxyPaths.includes(p[0]))) return
     try {
       const mode = resolveMode()
@@ -638,6 +652,11 @@ export function apply(ctx: Context, config: ProxyConfig) {
         const testUrl = resolveTestUrl()
         const route = await proxyRouteForUrl(testUrl)
         sendJson(res, 200, {
+          // Global master state. When false, resolveMode() forces 'all-bypass'
+          // regardless of proxyMode — the client uses this flag to render the
+          // master toggle and to distinguish "proxy disabled" from "mode =
+          // all-bypass" chosen explicitly.
+          proxyEnabled: config.proxyEnabled?.get() !== false,
           proxyMode: mode,
           customNoProxy: custom,
           testUrl,

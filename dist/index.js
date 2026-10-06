@@ -48,6 +48,7 @@ const LAUNCH_ENVIRONMENT_SERVICE = 'launchEnvironment';
  * writes through ctx.remote.settings, they must all be volatile.
  */
 export const Config = Schema.object({
+    proxyEnabled: Schema.boolean().default(true).volatile(),
     proxyMode: Schema.string().default(DEFAULT_MODE).volatile(),
     customNoProxy: Schema.string().default(DEFAULT_CUSTOM).volatile(),
     testUrl: Schema.string().default(DEFAULT_TEST_URL).volatile(),
@@ -237,11 +238,18 @@ export function apply(ctx, config) {
         };
     }
     /**
-     * Resolve the effective proxy mode, accounting for the legacy useProxy
-     * migration: if proxyMode sits at its default but useProxy was explicitly
-     * set, the old boolean takes over.
+     * Resolve the effective proxy mode.
+     *
+     * The global master switch (proxyEnabled) takes precedence: when it is off,
+     * the proxy is disabled entirely and every request goes direct (all-bypass).
+     * Otherwise the legacy useProxy migration applies — if proxyMode sits at its
+     * default but useProxy was explicitly set, the old boolean takes over.
      */
     function resolveMode() {
+        // Global master off → proxy disabled entirely (all direct).
+        const enabled = config.proxyEnabled?.get() !== false;
+        if (!enabled)
+            return 'all-bypass';
         let mode = config.proxyMode.get() || DEFAULT_MODE;
         if (!config.proxyMode.get() && typeof config.useProxy?.get() === 'boolean') {
             mode = config.useProxy.get() ? 'all-proxy' : 'all-bypass';
@@ -260,7 +268,7 @@ export function apply(ctx, config) {
     async function applyProxyEnv(mode, custom) {
         // Idempotence guard — see _appliedProxyKey. Set before any await so the
         // duplicate startup caller is a no-op rather than a racing second install.
-        const key = mode + ' ' + custom;
+        const key = mode + '\u0000' + custom;
         if (key === _appliedProxyKey)
             return;
         _appliedProxyKey = key;
@@ -500,7 +508,7 @@ export function apply(ctx, config) {
     // subscribes to proxy paths only.
     const relevant = (p) => p.length === 1;
     ctx.on('loader/volatile-update', (paths) => {
-        const proxyPaths = ['proxyMode', 'customNoProxy', 'useProxy'];
+        const proxyPaths = ['proxyEnabled', 'proxyMode', 'customNoProxy', 'useProxy'];
         if (!paths.some((p) => relevant(p) && proxyPaths.includes(p[0])))
             return;
         try {
@@ -540,6 +548,11 @@ export function apply(ctx, config) {
                 const testUrl = resolveTestUrl();
                 const route = await proxyRouteForUrl(testUrl);
                 sendJson(res, 200, {
+                    // Global master state. When false, resolveMode() forces 'all-bypass'
+                    // regardless of proxyMode — the client uses this flag to render the
+                    // master toggle and to distinguish "proxy disabled" from "mode =
+                    // all-bypass" chosen explicitly.
+                    proxyEnabled: config.proxyEnabled?.get() !== false,
                     proxyMode: mode,
                     customNoProxy: custom,
                     testUrl,

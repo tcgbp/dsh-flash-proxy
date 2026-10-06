@@ -7,7 +7,8 @@ connection diagnostics, and proxy environment inventory.
 
 ## Features
 
-- **Proxy Mode Selector** — Choose between All Proxy, API Bypass, All Bypass, or Custom NO_PROXY
+- **System Proxy Toggle** — Global on/off master switch (like System Alerts); turns the entire proxy feature on or off
+- **Proxy Mode Selector** — Choose between All Proxy, API Bypass, All Bypass, or Custom NO_PROXY (nested under the master switch)
 - **Connection Test** — Diagnose outbound connectivity with redirect chain analysis
 - **Proxy Environment** — Read-only inventory of HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY
 - **Diagnostics Log** — Detailed test results with timing and error codes
@@ -38,6 +39,7 @@ the next sync.
 
 | Field | Default | Description |
 |---|---|---|
+| `proxyEnabled` | `true` | Global master switch — when `false`, all requests go direct regardless of `proxyMode` |
 | `proxyMode` | `all-proxy` | NO_PROXY policy: `all-proxy` / `api-bypass` / `all-bypass` / `custom` |
 | `customNoProxy` | `''` | Custom NO_PROXY value (only when `proxyMode` is `custom`) |
 | `testUrl` | `https://www.google.com/generate_204` | URL the connection test probes |

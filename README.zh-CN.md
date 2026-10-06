@@ -4,11 +4,12 @@
 
 面向 DeepSeek Harness（DSH）的系统代理控制插件——负责 NO_PROXY 策略管理、出站连接诊断，以及代理环境变量的只读盘点。
 
-插件分为 Host 端（Node 侧）与 Client 端（dock-flash QuickControl 面板）两部分：Host 端注册设置命名空间并通过 `@deepseek-ai/dsh-http-proxy` 重装 undici 全局调度器，使进程内的出站请求遵循用户选择的 NO_PROXY 策略；Client 端在 dock-flash 的 QuickControl 面板上提供 6 个开关，用于切换代理模式、指定测试地址、执行连接测试并查看诊断日志与代理环境。
+插件分为 Host 端（Node 侧）与 Client 端（dock-flash QuickControl 面板）两部分：Host 端注册设置命名空间并通过 `@deepseek-ai/dsh-http-proxy` 重装 undici 全局调度器，使进程内的出站请求遵循用户选择的 NO_PROXY 策略；Client 端在 dock-flash 的 QuickControl 面板上提供全局主开关和 5 个受控开关，用于切换代理模式、指定测试地址、执行连接测试并查看诊断日志与代理环境。
 
 ## 特性
 
-- **代理模式选择器（系统代理）** —— 在「全部代理 / 仅 API 绕过 / 全部绕过 / 自定义」四种模式间切换
+- **系统代理全局开关** —— 类似系统告警的主开关，一键开启/关闭整个代理功能；关闭后所有请求直连，代理模式等控件自动隐藏
+- **代理模式选择器** —— 在「全部代理 / 仅 API 绕过 / 全部绕过 / 自定义」四种模式间切换（嵌套于全局开关下方，关闭时隐藏）
 - **连接测试** —— 诊断出站连通性，手动跟踪重定向链并逐跳分析
 - **代理环境** —— HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY 的只读盘点，逐类如实展示
 - **诊断日志** —— 详细的测试结果，含分阶段耗时（响应头 / 响应体）、重定向链与底层套接字错误码
@@ -51,6 +52,7 @@ QuickControl 面板 UI 依赖 [dock-flash](https://github.com/tcgbp/dock-flash)�
 
 | 字段 | 默认值 | 说明 |
 |---|---|---|
+| `proxyEnabled` | `true` | 全局主开关——关闭后所有请求直连，忽略 `proxyMode` |
 | `proxyMode` | `all-proxy` | NO_PROXY 策略：`all-proxy` / `api-bypass` / `all-bypass` / `custom` |
 | `customNoProxy` | `''` | 自定义 NO_PROXY 值（仅当 `proxyMode` 为 `custom` 时生效） |
 | `testUrl` | `https://www.google.com/generate_204` | 连接测试所探测的 URL |
@@ -67,7 +69,7 @@ QuickControl 面板 UI 依赖 [dock-flash](https://github.com/tcgbp/dock-flash)�
 
 Host 端向 Client 端暴露两个 HTTP 路由（经 webServer 注册，回环访问）：
 
-- `GET /plugins/dsh-flash-proxy/proxy-status` —— 返回当前 `proxyMode`、`customNoProxy`、`testUrl` 及实际生效的 NO_PROXY 环境变量值；并以当前配置的测试目标为探针回报 `proxyAvailable`（代理是否可用）与逐类代理变量（HTTP / HTTPS / ALL）。
+- `GET /plugins/dsh-flash-proxy/proxy-status` —— 返回当前 `proxyEnabled`、`proxyMode`、`customNoProxy`、`testUrl` 及实际生效的 NO_PROXY 环境变量值；并以当前配置的测试目标为探针回报 `proxyAvailable`（代理是否可用）与逐类代理变量（HTTP / HTTPS / ALL）。
 - `POST /plugins/dsh-flash-proxy/test-connection` —— 执行连接测试并返回诊断结果：手写重定向链遍历（区分「302 去往不可达地址」与「连接被拒」）、分别测量响应头与响应体耗时、返回代理路由决策（`proxied`）与底层错误码（`cause.code`，如 `ENOTFOUND`、`UND_ERR_CONNECT_TIMEOUT`、`DEPTH_ZERO_SELF_SIGNED_CERT`）。请求体可带可选 `{ url }` 覆盖测试目标，缺省时回落到存储的 `testUrl` 设置。
 
 ## 构建
