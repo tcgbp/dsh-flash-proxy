@@ -757,10 +757,26 @@ export function apply(ctx: Context, config: ProxyConfig) {
     const settings = settingsCtx.settings
     if (!settings || typeof settings.describe !== 'function') return
 
-    settings.describe().then(async (desc: any) => {
+    // `settings` here is the HOST service — `SettingsForms` from
+    // @deepseek-ai/dsh-settings — and ITS `describe()` is SYNCHRONOUS: it returns
+    // the descriptor ARRAY directly, with no `{ok, value}` envelope. Writing
+    // `settings.describe().then(...)` therefore threw
+    // `TypeError: settings.describe(...).then is not a function` on the spot, and
+    // because the throw happens at the `.then` ACCESS it also escaped the
+    // `.catch(() => {})` at the end of the chain — so this migration has never run
+    // once. Normalize the result instead, and accept BOTH shapes: the host's bare
+    // array, and the remote namespace's `{ ok, value: { namespaces } }`.
+    const described: Promise<any> = (() => {
+      try { return Promise.resolve(settings.describe()) }
+      catch (e) { return Promise.reject(e) }
+    })()
+
+    described.then(async (desc: any) => {
       if (!desc || desc.ok === false) return
       const view = desc.value || desc
-      const nsList = view && Array.isArray(view.namespaces) ? view.namespaces : []
+      const nsList = view && Array.isArray(view.namespaces)
+        ? view.namespaces
+        : (Array.isArray(view) ? view : [])
       const oldNs = nsList.find((n: any) => (n && (n.ns || n.namespace)) === 'dock-flash')
       if (!oldNs) return
 
