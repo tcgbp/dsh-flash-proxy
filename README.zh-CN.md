@@ -4,7 +4,7 @@
 
 面向 DeepSeek Harness（DSH）的系统代理控制插件——负责 NO_PROXY 策略管理、出站连接诊断，以及代理环境变量的只读盘点。
 
-插件分为 Host 端（Node 侧）与 Client 端（dock-flash QuickControl 面板）两部分：Host 端注册设置命名空间并通过 `@deepseek-ai/dsh-http-proxy` 重装 undici 全局调度器，使进程内的出站请求遵循用户选择的 NO_PROXY 策略；Client 端在 dock-flash 的 QuickControl 面板上提供全局主开关和 5 个受控开关，用于切换代理模式、指定测试地址、执行连接测试并查看诊断日志与代理环境。
+插件分为 Host 端（Node 侧）与 Client 端（dsh-flash QuickControl 面板）两部分：Host 端注册设置命名空间并通过 `@deepseek-ai/dsh-http-proxy` 重装 undici 全局调度器，使进程内的出站请求遵循用户选择的 NO_PROXY 策略；Client 端在 dsh-flash 的 QuickControl 面板上提供全局主开关和 5 个受控开关，用于切换代理模式、指定测试地址、执行连接测试并查看诊断日志与代理环境。
 
 ## 特性
 
@@ -35,7 +35,7 @@
 dsh plugin --profile <name> add dsh-flash-proxy
 ```
 
-QuickControl 面板 UI 依赖 [dock-flash](https://github.com/tcgbp/dock-flash)，请确保其已安装启用。
+QuickControl 面板 UI 依赖核心包 [`dsh-flash`](https://www.npmjs.com/package/dsh-flash) `>=1.0.0-0 <2.0.0-0`；dock-base 工作台 UI 由 [`dock-flash` v3 适配器](https://github.com/tcgbp/dock-flash)提供，请确保其已安装启用。
 
 ## 仓库镜像
 

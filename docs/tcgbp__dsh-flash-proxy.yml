@@ -54,6 +54,6 @@ url: https://github.com/tcgbp/dsh-flash-proxy
 name: tcgbp/dsh-flash-proxy
 category: tools
 description:
-  en: 'System proxy control for DSH, surfaced through dock-flash: proxy mode, a validated NO_PROXY policy grammar, a configurable test URL, connection diagnostics and proxy environment inventory, registering five switches through the quickControl service.'
-  zh: 'DSH 的系统代理控制，经 dock-flash 面板呈现：代理模式、带校验的 NO_PROXY 语法、可配置的测试地址、连接诊断与代理环境清单，通过 quickControl 服务注册五个开关。'
+  en: 'System proxy control for DSH, surfaced through dsh-flash: proxy mode, a validated NO_PROXY policy grammar, a configurable test URL, connection diagnostics and proxy environment inventory, registering five switches through the quickControl service.'
+  zh: 'DSH 的系统代理控制，经 dsh-flash 面板呈现：代理模式、带校验的 NO_PROXY 语法、可配置的测试地址、连接诊断与代理环境清单，通过 quickControl 服务注册五个开关。'
 tarball: https://github.com/tcgbp/dsh-flash-proxy/releases/latest/download/dsh-flash-proxy.tgz

@@ -19,7 +19,7 @@ connection diagnostics, and proxy environment inventory.
 dsh plugin --profile <name> add dsh-flash-proxy
 ```
 
-Requires [dock-flash](https://github.com/tcgbp/dock-flash) for the QuickControl panel UI.
+Requires the core [`dsh-flash`](https://www.npmjs.com/package/dsh-flash) `>=1.0.0-0 <2.0.0-0` for the QuickControl registry; the dock-base workbench UI comes from the [`dock-flash` v3 adapter](https://github.com/tcgbp/dock-flash).
 
 ## Repository Mirrors
 
