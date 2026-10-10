@@ -37,6 +37,7 @@
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
         "dsh-flash"
       ],
       "platform": "web"
@@ -51,10 +52,12 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.0-rc.1 <5.0.0-0 || >=4.0.1-0 <5.0.0-0",
+    "@deepseek-ai/dsh-client-locale": ">=0.1.1-rc.2 <1.0.0-0",
     "dsh-flash": ">=1.0.0-0 <2.0.0-0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh-client-locale": "0.1.1-rc.2",
     "@deepseek-ai/dsh-settings": "0.2.0-rc.2",
     "@types/node": "^22.10.0",
     "typescript": "^5.6.0"
