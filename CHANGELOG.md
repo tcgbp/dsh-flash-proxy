@@ -11,6 +11,17 @@ chain analysis, the read-only proxy-environment inventory, and the diagnostics
 log. It registers its switches and its log through the core `dsh-flash`
 `quickControl` registry.
 
+## 0.1.6
+
+**Client i18n now reuses the official `@deepseek-ai/dsh-client-locale` framework**
+instead of the hand-rolled locale system. The client populates its dictionaries
+through `locale.register('dsh-flash-proxy', { zh, en })` and reads text through
+the bound translator (`locale.bind`), so active-locale resolution, host-backed
+language preference, and `locale/change` re-rendering all come from the platform
+instead of a local `MutationObserver` / `<html lang>`/`navigator.language` hack.
+No strings changed, and the zh/en tables are unchanged. Internally the locale
+package is now declared as both a runtime peer and a local dev dependency.
+
 ## 0.1.5
 
 **First release after the core/adapter split peer move.** The `dsh-flash` peer
