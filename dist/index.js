@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 // Default export only (export default Schema); there is no named Schema.
 import Schema from '@deepseek-ai/schemastery';
+import { proxyOverrideToNoProxy, proxyServerToEnv, readSystemProxy, systemProxySupported, } from './registry.js';
 export const name = 'dsh-flash-proxy';
 // No host-side hard dependencies; all services are injected lazily.
 export const inject = [];
@@ -31,6 +32,13 @@ const API_BYPASS_DOMAINS = 'api.deepseek.com,chat.deepseek.com';
  */
 const LAUNCH_ENVIRONMENT_SERVICE = 'launchEnvironment';
 /**
+ * System-proxy source ids — the `source` discriminator between routing from the
+ * environment-variable proxy and routing from the OS's system proxy (Windows
+ * WinINet registry or macOS scutil).
+ */
+const PROXY_SOURCE_ENV = 'env';
+const PROXY_SOURCE_SYSTEM = 'system';
+/**
  * The plugin's Config schema — the host's composition defaults, exported so
  * the Cordis loader publishes it as runtime.Config.
  *
@@ -52,6 +60,7 @@ export const Config = Schema.object({
     proxyMode: Schema.string().default(DEFAULT_MODE).volatile(),
     customNoProxy: Schema.string().default(DEFAULT_CUSTOM).volatile(),
     testUrl: Schema.string().default(DEFAULT_TEST_URL).volatile(),
+    useSystemProxy: Schema.boolean().default(false).volatile(),
     // Keep the old field so legacy clients don't break; migrated on read.
     useProxy: Schema.boolean().default(true).volatile(),
 });
@@ -99,6 +108,30 @@ let _disposeProxyPolicy = null;
  */
 let _appliedProxyKey = null;
 let _proxyModulePromise = null;
+/**
+ * Cached system-proxy snapshot, fetched once at startup (and refreshed lazily
+ * on demand). Kept module-level so both the apply path and the status route
+ * read the same values without repeatedly shelling out to `reg`/`scutil`.
+ */
+let _systemProxySnapshot = null;
+/** Promise wrapper so the snapshot is fetched at most once, even concurrently. */
+function systemProxySnapshot() {
+    if (!_systemProxySnapshot) {
+        _systemProxySnapshot = readSystemProxy().catch((e) => {
+            console.warn('[dsh-flash-proxy] system proxy read failed:', e?.message || e);
+            return null;
+        });
+    }
+    return _systemProxySnapshot;
+}
+/** Derive the { http, https, all } + NO_PROXY to apply when the source is the system proxy. */
+function deriveRegistryEnv(snapshot) {
+    if (!snapshot || !snapshot.proxyEnable) {
+        return { http: null, https: null, all: null, noProxy: null };
+    }
+    const { http, https, all } = proxyServerToEnv(snapshot.proxyServer);
+    return { http, https, all, noProxy: proxyOverrideToNoProxy(snapshot.proxyOverride) };
+}
 /**
  * Load @deepseek-ai/dsh-http-proxy, once, from the instance DSH itself uses.
  *
@@ -264,11 +297,15 @@ export function apply(ctx, config) {
      * at install time and never re-reads the environment, so only a re-install
      * changes actual routing. The environment write exists for the consumers that
      * *do* read it — spawned children, and node:http's proxyEnv.
+     *
+     * @param source PROXY_SOURCE_ENV to route from the process/launch environment
+     *   (the existing behaviour), or PROXY_SOURCE_SYSTEM to route from the OS
+     *   system proxy (Windows WinINet registry / macOS scutil) when it is enabled.
      */
-    async function applyProxyEnv(mode, custom) {
+    async function applyProxyEnv(mode, custom, source = PROXY_SOURCE_ENV) {
         // Idempotence guard — see _appliedProxyKey. Set before any await so the
         // duplicate startup caller is a no-op rather than a racing second install.
-        const key = mode + '\u0000' + custom;
+        const key = mode + '\u0000' + custom + '\u0000' + source;
         if (key === _appliedProxyKey)
             return;
         _appliedProxyKey = key;
@@ -281,17 +318,26 @@ export function apply(ctx, config) {
             process.env.NO_PROXY = noProxy;
             process.env.no_proxy = noProxy;
         }
-        console.log('[dsh-flash-proxy] proxy mode=' + mode + ' (NO_PROXY=' + (noProxy ?? '<removed>') + ')');
+        console.log('[dsh-flash-proxy] proxy mode=' + mode + ' source=' + source +
+            ' (NO_PROXY=' + (noProxy ?? '<removed>') + ')');
         const mod = await loadProxyModule();
         if (!mod) {
             _appliedProxyKey = null;
             console.warn('[dsh-flash-proxy] proxy module unavailable — routing is unchanged (the mode now affects child processes only)');
             return;
         }
+        // When adopting the OS system proxy, override the endpoint variables with
+        // the system-derived values; otherwise fall back to the launch env.
+        const systemEnv = source === PROXY_SOURCE_SYSTEM
+            ? deriveRegistryEnv(await systemProxySnapshot())
+            : null;
+        const hasSystemProxy = systemEnv != null &&
+            (systemEnv.http != null || systemEnv.https != null || systemEnv.all != null);
         // Base the policy on DSH's own snapshot so that nothing but the bypass list
-        // changes. Resolving from process.env would silently disagree with the
-        // policy DSH installed: its snapshot also merges the project-env and
-        // user-env layers, which process.env knows nothing about.
+        // (and, when adopting the system proxy, the endpoint) changes. Resolving
+        // from process.env would silently disagree with the policy DSH installed:
+        // its snapshot also merges the project-env and user-env layers, which
+        // process.env knows nothing about.
         const snapshot = launchEnvironment();
         const base = snapshot || processEnvLookup();
         const envLookup = {
@@ -299,6 +345,17 @@ export function apply(ctx, config) {
                 // undici reads the lowercase spelling first, so both are owned here.
                 if (name === 'NO_PROXY' || name === 'no_proxy') {
                     return noProxy === undefined ? undefined : { value: noProxy };
+                }
+                if (hasSystemProxy && systemEnv != null) {
+                    if (name === 'HTTP_PROXY' || name === 'http_proxy') {
+                        return systemEnv.http == null ? undefined : { value: systemEnv.http };
+                    }
+                    if (name === 'HTTPS_PROXY' || name === 'https_proxy') {
+                        return systemEnv.https == null ? undefined : { value: systemEnv.https };
+                    }
+                    if (name === 'ALL_PROXY' || name === 'all_proxy') {
+                        return systemEnv.all == null ? undefined : { value: systemEnv.all };
+                    }
                 }
                 return base.get(name);
             },
@@ -317,13 +374,53 @@ export function apply(ctx, config) {
                 console.warn('[dsh-flash-proxy] proxy install warning: ' + message);
             });
             console.log('[dsh-flash-proxy] undici global dispatcher re-installed (env source=' +
-                (snapshot ? 'launchEnvironment' : 'process.env') + ')');
+                (hasSystemProxy ? PROXY_SOURCE_SYSTEM : (snapshot ? 'launchEnvironment' : 'process.env')) + ')');
         }
         catch (e) {
             // Let the next change retry: nothing was installed, so nothing is in force.
             _appliedProxyKey = null;
             console.warn('[dsh-flash-proxy] could not re-install proxy dispatcher:', e?.message || e);
         }
+    }
+    /**
+     * Resolve the effective proxy source: the OS system proxy (Windows WinINet
+     * registry or macOS scutil) when the user opted in AND the system proxy is
+     * enabled, else the environment.
+     *
+     * The master switch (proxyEnabled) still forces all direct; the source only
+     * selects *which* proxy endpoints are used, never whether to bypass.
+     */
+    function resolveSource() {
+        const enabled = config.proxyEnabled?.get() !== false;
+        if (!enabled)
+            return PROXY_SOURCE_ENV;
+        const optIn = config.useSystemProxy?.get() === true;
+        if (optIn && systemProxySupported())
+            return PROXY_SOURCE_SYSTEM;
+        return PROXY_SOURCE_ENV;
+    }
+    /**
+     * Build the read-only `systemProxy` inventory for the status route. Shells out
+     * to `reg`/`scutil` only the first time (cached); afterwards it is a pure
+     * projection.
+     */
+    async function systemProxySummary() {
+        const supported = systemProxySupported();
+        const snapshot = supported ? await systemProxySnapshot() : null;
+        const derived = deriveRegistryEnv(snapshot);
+        const hasDerived = derived.http != null || derived.https != null || derived.all != null;
+        return {
+            supported,
+            optIn: config.useSystemProxy?.get() === true,
+            enabled: snapshot?.proxyEnable ?? false,
+            server: snapshot?.proxyServer ?? '',
+            override: snapshot?.proxyOverride ?? '',
+            autoConfigUrl: snapshot?.autoConfigUrl ?? null,
+            autoDetect: snapshot?.autoDetect ?? false,
+            derived,
+            inUse: supported && derived != null && hasDerived && resolveSource() === PROXY_SOURCE_SYSTEM,
+            error: snapshot?.error ?? null,
+        };
     }
     /**
      * Ask dsh-http-proxy how it would route url.
@@ -508,12 +605,12 @@ export function apply(ctx, config) {
     // subscribes to proxy paths only.
     const relevant = (p) => p.length === 1;
     ctx.on('loader/volatile-update', (paths) => {
-        const proxyPaths = ['proxyEnabled', 'proxyMode', 'customNoProxy', 'useProxy'];
+        const proxyPaths = ['proxyEnabled', 'proxyMode', 'customNoProxy', 'useProxy', 'useSystemProxy'];
         if (!paths.some((p) => relevant(p) && proxyPaths.includes(p[0])))
             return;
         try {
             const mode = resolveMode();
-            applyProxyEnv(mode, config.customNoProxy.get() || '');
+            applyProxyEnv(mode, config.customNoProxy.get() || '', resolveSource());
         }
         catch (e) {
             console.error('[dsh-flash-proxy] failed to update proxy setting:', e);
@@ -523,7 +620,7 @@ export function apply(ctx, config) {
     // Apply the initial proxy state immediately
     try {
         const mode = resolveMode();
-        applyProxyEnv(mode, config.customNoProxy.get() || '');
+        applyProxyEnv(mode, config.customNoProxy.get() || '', resolveSource());
     }
     catch (_) { }
     // ── HTTP API routes ────────────────────────────────────────────────────
@@ -556,6 +653,11 @@ export function apply(ctx, config) {
                     proxyMode: mode,
                     customNoProxy: custom,
                     testUrl,
+                    // Adopt the OS system proxy as the endpoint source.
+                    useSystemProxy: config.useSystemProxy?.get() === true,
+                    // Read-only system-proxy inventory (WinINet registry on Windows,
+                    // scutil on macOS) + the derived proxy env.
+                    systemProxy: await systemProxySummary(),
                     // What this plugin published for the current mode (null = cleared).
                     noProxy: resolveNoProxy(mode, custom) ?? null,
                     testDefault: DEFAULT_TEST_URL,

@@ -9,8 +9,9 @@ connection diagnostics, and proxy environment inventory.
 
 - **System Proxy Toggle** — Global on/off master switch (like System Alerts); turns the entire proxy feature on or off
 - **Proxy Mode Selector** — Choose between All Proxy, API Bypass, All Bypass, or Custom NO_PROXY (nested under the master switch)
+- **Use System Proxy** — On Windows and macOS, read the system proxy (Windows WinINet `Internet Settings` registry, or macOS active network service via `scutil`) and optionally use it for this process instead of the launch-environment proxy
 - **Connection Test** — Diagnose outbound connectivity with redirect chain analysis
-- **Proxy Environment** — Read-only inventory of HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY
+- **Proxy Environment** — Read-only inventory of HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY, plus the system-proxy snapshot
 - **Diagnostics Log** — Detailed test results with timing and error codes
 
 ## Installation
@@ -43,6 +44,31 @@ the next sync.
 | `proxyMode` | `all-proxy` | NO_PROXY policy: `all-proxy` / `api-bypass` / `all-bypass` / `custom` |
 | `customNoProxy` | `''` | Custom NO_PROXY value (only when `proxyMode` is `custom`) |
 | `testUrl` | `https://www.google.com/generate_204` | URL the connection test probes |
+| `useSystemProxy` | `false` | Windows/macOS: use the OS system proxy instead of the launch environment (ignored on other platforms) |
+
+## System Proxy (Windows WinINet registry / macOS scutil)
+
+On Windows, `dsh-flash-proxy` reads the system proxy stored in the
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings` registry keys.
+On macOS it reads the current network service's proxy settings via
+`scutil --proxy` (JSON form when available, with a legacy text fallback). The
+QuickControl panel shows a read-only snapshot (`proxyEnable`, `proxyServer`,
+`proxyOverride`, `autoConfigUrl`, `autoDetect`) and derives the equivalent proxy
+environment from it for display.
+
+- A plain `host:port` proxy is mapped to both `HTTP_PROXY` and `HTTPS_PROXY`
+  (surfaced as `ALL_PROXY`).
+- A segmented value (`http=…;https=…;ftp=…`; the macOS reader produces
+  `http=…;https=…` from the per-protocol HTTP(S) proxy) is parsed per protocol.
+- The bypass list (`ProxyOverride` on Windows, `ExceptionsList` on macOS) is
+  translated into `NO_PROXY`; the `<local>` token is dropped (the plugin grammar
+  does not accept it).
+
+When the **Use System Proxy** toggle is ON, the host is Windows or macOS, and the
+master switch is enabled, the effective `HTTP_PROXY` / `HTTPS_PROXY` /
+`ALL_PROXY` and `NO_PROXY` are taken from the system-proxy snapshot instead of
+the launch environment. All other platforms ignore this toggle and keep the
+default (localStorage) behaviour unchanged.
 
 ## Migration from dock-flash
 
