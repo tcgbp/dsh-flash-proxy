@@ -11,6 +11,26 @@ chain analysis, the read-only proxy-environment inventory, and the diagnostics
 log. It registers its switches and its log through the core `dsh-flash`
 `quickControl` registry.
 
+## 0.2.0
+
+**The system-proxy toggle is now functional, and it works on both Windows and
+macOS.** The switch used to be cosmetic — it flipped the UI but never actually
+read or changed the operating system's proxy settings. This release wires it to
+the real OS:
+
+- **Windows** — reads and applies the per-user proxy via the Windows registry
+  (`\HKCU\...\Internet Settings`), covering HTTP, HTTPS, and the NO_PROXY /
+  bypass list (`ProxyOverride`).
+- **macOS** (new platform) — reads and applies proxy settings through
+  `scutil --proxy`, covering HTTP/HTTPS and the by-host exclusion list (SOCKS
+  ignored).
+- A plain `host:port` value applies to all protocols; segmented
+  `http=…;https=…` values apply per-protocol. The client toggle carries the OS
+  state and applies it through the host, and the control is only shown on
+  Windows/macOS hosts.
+- Non-Windows/macOS hosts are untouched (the toggle stays hidden and the
+  subsystem remains environment-only).
+
 ## 0.1.6
 
 **Client i18n now reuses the official `@deepseek-ai/dsh-client-locale` framework**
