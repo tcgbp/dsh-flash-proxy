@@ -11,6 +11,22 @@ chain analysis, the read-only proxy-environment inventory, and the diagnostics
 log. It registers its switches and its log through the core `dsh-flash`
 `quickControl` registry.
 
+## 0.2.1
+
+**Internal refactor only — no user-visible behaviour change.** Consolidates the
+proxy handling so the boot path and the live-edit path cannot drift, and removes
+repetition across the quick-control registrations:
+
+- `registry.ts` — one `degradedSnapshot()` factory replaces six inlined
+  all-defaults snapshots (single source of truth for the fallback shape).
+- `index.ts` — a shared `applyCurrentProxyState()` is used by both the startup
+  apply and the `loader/volatile-update` handler.
+- `client.js` — a data-driven `defSwitch()` collapses the repeated
+  `ctx.effect`/`registerSwitch`/`return dispose` wrapper across all seven
+  quick-control switches; the startup host-sync and `settings/updated` listener
+  share one `applyHostState()` reconciler; the read-only proxy-env panel is
+  rendered by a pure `_proxyEnvLines()` projection.
+
 ## 0.2.0
 
 **The system-proxy toggle is now functional, and it works on both Windows and
