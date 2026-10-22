@@ -738,12 +738,20 @@ export function apply(ctx: Context, config: ProxyConfig) {
   // loader/volatile-update with the paths that changed. This plugin
   // subscribes to proxy paths only.
   const relevant = (p: string[]) => p.length === 1
+
+  // Apply the current proxy policy from volatile config. Shared by the boot
+  // apply and the loader/volatile-update handler so the startup path and the
+  // live-edit path cannot drift. Callers own their own error handling.
+  const applyCurrentProxyState = () => {
+    const mode = resolveMode()
+    applyProxyEnv(mode, config.customNoProxy.get() || '', resolveSource())
+  }
+
   ctx.on('loader/volatile-update' as any, (paths: string[][]) => {
     const proxyPaths = ['proxyEnabled', 'proxyMode', 'customNoProxy', 'useProxy', 'useSystemProxy']
     if (!paths.some((p) => relevant(p) && proxyPaths.includes(p[0]))) return
     try {
-      const mode = resolveMode()
-      applyProxyEnv(mode, config.customNoProxy.get() || '', resolveSource())
+      applyCurrentProxyState()
     } catch (e) {
       console.error('[dsh-flash-proxy] failed to update proxy setting:', e)
     }
@@ -753,8 +761,7 @@ export function apply(ctx: Context, config: ProxyConfig) {
 
   // Apply the initial proxy state immediately
   try {
-    const mode = resolveMode()
-    applyProxyEnv(mode, config.customNoProxy.get() || '', resolveSource())
+    applyCurrentProxyState()
   } catch (_) {}
 
   // ── HTTP API routes ────────────────────────────────────────────────────

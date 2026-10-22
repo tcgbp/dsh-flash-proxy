@@ -107,6 +107,24 @@ export function regQueryRunner(command: string, args: string[], timeoutMs: numbe
 }
 
 /**
+ * The all-defaults snapshot used as the degraded / starting shape. Every
+ * reader composes from this single source of truth so the fallback shape
+ * cannot drift between the six call sites that previously inlined it.
+ *
+ * @param error optional error code to attach to the degraded snapshot
+ */
+function degradedSnapshot(error?: string): SystemProxySnapshot {
+  const base: SystemProxySnapshot = {
+    proxyEnable: false,
+    proxyServer: '',
+    proxyOverride: '',
+    autoConfigUrl: null,
+    autoDetect: false,
+  }
+  return error ? { ...base, error } : base
+}
+
+/**
  * Read the WinINet Internet Settings key and parse the values we care about.
  *
  * @param runner   command runner (injectable; defaults to regQueryRunner)
@@ -116,13 +134,7 @@ export async function readWinINetRegistry(
   runner: CommandRunner = regQueryRunner,
   timeoutMs = 4000,
 ): Promise<SystemProxySnapshot> {
-  const degraded: SystemProxySnapshot = {
-    proxyEnable: false,
-    proxyServer: '',
-    proxyOverride: '',
-    autoConfigUrl: null,
-    autoDetect: false,
-  }
+  const degraded: SystemProxySnapshot = degradedSnapshot()
 
   if (!isWindows()) {
     return { ...degraded, error: 'registry-unsupported-platform' }
@@ -164,13 +176,7 @@ export async function readMacOSProxy(
   runner: CommandRunner = regQueryRunner,
   timeoutMs = 4000,
 ): Promise<SystemProxySnapshot> {
-  const degraded: SystemProxySnapshot = {
-    proxyEnable: false,
-    proxyServer: '',
-    proxyOverride: '',
-    autoConfigUrl: null,
-    autoDetect: false,
-  }
+  const degraded: SystemProxySnapshot = degradedSnapshot()
 
   if (!isMacOS()) {
     return { ...degraded, error: 'macos-unsupported-platform' }
@@ -206,13 +212,7 @@ export async function readMacOSProxy(
  * Exported so tests can feed a fixture without a real `scutil`.
  */
 export function parseMacOSProxyJson(jsonText: string): SystemProxySnapshot {
-  const degraded: SystemProxySnapshot = {
-    proxyEnable: false,
-    proxyServer: '',
-    proxyOverride: '',
-    autoConfigUrl: null,
-    autoDetect: false,
-  }
+  const degraded: SystemProxySnapshot = degradedSnapshot()
 
   let data: any
   try {
@@ -263,14 +263,6 @@ export function parseMacOSProxyJson(jsonText: string): SystemProxySnapshot {
  * Accepts the same keys, in both `name : value` and `name = value` forms.
  */
 export function parseMacOSProxyText(text: string): SystemProxySnapshot {
-  const degraded: SystemProxySnapshot = {
-    proxyEnable: false,
-    proxyServer: '',
-    proxyOverride: '',
-    autoConfigUrl: null,
-    autoDetect: false,
-  }
-
   const values: Record<string, string> = {}
   const exceptions: string[] = []
   const lines = String(text || '').split(/\r?\n/)
@@ -320,14 +312,7 @@ export async function readSystemProxy(
 ): Promise<SystemProxySnapshot> {
   if (isWindows()) return readWinINetRegistry(runner, timeoutMs)
   if (isMacOS()) return readMacOSProxy(runner, timeoutMs)
-  const degraded: SystemProxySnapshot = {
-    proxyEnable: false,
-    proxyServer: '',
-    proxyOverride: '',
-    autoConfigUrl: null,
-    autoDetect: false,
-  }
-  return { ...degraded, error: 'system-proxy-unsupported-platform' }
+  return degradedSnapshot('system-proxy-unsupported-platform')
 }
 
 /**
@@ -379,13 +364,7 @@ function strOrNull(v: unknown): string | null {
  * rely on section banners (`\[HKEY...\]`) since we query a single leaf key.
  */
 export function parseWinINetOutput(output: string): SystemProxySnapshot {
-  const snapshot: SystemProxySnapshot = {
-    proxyEnable: false,
-    proxyServer: '',
-    proxyOverride: '',
-    autoConfigUrl: null,
-    autoDetect: false,
-  }
+  const snapshot: SystemProxySnapshot = degradedSnapshot()
 
   const lines = String(output || '').split(/\r?\n/)
   for (const raw of lines) {
