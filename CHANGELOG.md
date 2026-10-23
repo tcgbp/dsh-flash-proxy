@@ -11,6 +11,14 @@ chain analysis, the read-only proxy-environment inventory, and the diagnostics
 log. It registers its switches and its log through the core `dsh-flash`
 `quickControl` registry.
 
+## 0.2.2
+
+**Release engineering only — no runtime behaviour change.** The publish workflow is
+corrected: `pnpm run --if-present build` (the flag belongs to pnpm, not the run script)
+instead of the mis-ordered `pnpm run build --if-present`, pnpm pinned to `11.5.3`, and
+the npm upgrade step pinned to `npm@11` for trusted publishing — no `registry-url`, so
+OIDC/provenance applies on publish.
+
 ## 0.2.1
 
 **Internal refactor only — no user-visible behaviour change.** Consolidates the
